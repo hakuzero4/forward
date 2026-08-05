@@ -319,6 +319,10 @@ td.time { color: var(--text-2); font-variant-numeric: tabular-nums; }
         <input type="text" id="tgCaption" placeholder="可选" autocomplete="off">
       </div>
       <div class="field">
+        <label>Bot Token（服务端未配置时填写）</label>
+        <input type="text" id="tgBotToken" placeholder="可选" autocomplete="off">
+      </div>
+      <div class="field">
         <label>parse_mode</label>
         <select id="tgParse">
           <option value="">无</option>
@@ -364,6 +368,7 @@ td.time { color: var(--text-2); font-variant-numeric: tabular-nums; }
   -d '{"chat_id":"-1001234567890","text":"hello"}'</code></pre>
     <table class="doc-table">
       <tr><td>chat_id *</td><td>群组 / 用户 ID，群组以 -100 开头</td></tr>
+      <tr><td>bot_token</td><td>Bot Token（服务端未设置 TELEGRAM_BOT_TOKEN 时必填）</td></tr>
       <tr><td>text</td><td>消息文本（与 photo_url 二选一）</td></tr>
       <tr><td>photo_url</td><td>图片 URL，此时走 sendPhoto</td></tr>
       <tr><td>caption</td><td>图片说明，缺省用 text</td></tr>
@@ -394,7 +399,7 @@ td.time { color: var(--text-2); font-variant-numeric: tabular-nums; }
 
     <h3>配置（环境变量）</h3>
     <table class="doc-table">
-      <tr><td>TELEGRAM_BOT_TOKEN *</td><td>Bot Token（必填）</td></tr>
+      <tr><td>TELEGRAM_BOT_TOKEN</td><td>Bot Token（可选；也可在 /api/send 请求里传 bot_token）</td></tr>
       <tr><td>RELAY_AUTH_TOKEN</td><td>调用方鉴权 Token（建议设置）</td></tr>
       <tr><td>LISTEN_ADDR</td><td>监听地址，默认 :8080</td></tr>
       <tr><td>TELEGRAM_API_BASE</td><td>Telegram API 地址</td></tr>
@@ -541,7 +546,7 @@ function resetForm() {
     $('fwdHeaders').value = ''; $('fwdBody').value = '';
   } else {
     $('tgChat').value = ''; $('tgThread').value = '';
-    $('tgText').value = ''; $('tgPhoto').value = ''; $('tgCaption').value = '';
+    $('tgText').value = ''; $('tgPhoto').value = ''; $('tgCaption').value = ''; $('tgBotToken').value = '';
     $('tgParse').value = ''; $('tgNotify').checked = false; $('tgPreview').checked = false;
   }
   showResult('', '');
@@ -567,6 +572,7 @@ async function sendNow() {
     var chat = $('tgChat').value.trim();
     if (!chat) { showResult('请填写 chat_id', 'error'); return; }
     payload = { chat_id: chat };
+    if ($('tgBotToken').value.trim()) { payload.bot_token = $('tgBotToken').value.trim(); }
     if ($('tgText').value) { payload.text = $('tgText').value; }
     if ($('tgPhoto').value.trim()) { payload.photo_url = $('tgPhoto').value.trim(); }
     if ($('tgCaption').value.trim()) { payload.caption = $('tgCaption').value.trim(); }

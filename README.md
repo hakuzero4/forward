@@ -26,7 +26,7 @@
 ### 本地运行
 
 ```bash
-export TELEGRAM_BOT_TOKEN=123456:ABC...   # Bot Token（必填）
+export TELEGRAM_BOT_TOKEN=123456:ABC...   # 可选：服务端默认 Bot Token
 export LOG_FILE=/var/log/forward.jsonl    # 可选：记录持久化
 ./forward
 ```
@@ -67,7 +67,7 @@ docker compose up -d --build   # 或从本地源码构建
 
 | 环境变量 | 参数 | 说明 | 默认值 |
 | --- | --- | --- | --- |
-| `TELEGRAM_BOT_TOKEN` | `-bot-token` | Telegram Bot Token（必填） | - |
+| `TELEGRAM_BOT_TOKEN` | `-bot-token` | Telegram Bot Token（可选；也可在 `/api/send` 请求里传 `bot_token`） | 空 |
 | `RELAY_AUTH_TOKEN` | `-auth-token` | 调用方鉴权 Token（建议设置） | 空 |
 | `LISTEN_ADDR` | `-listen` | 监听地址 | `:8080` |
 | `TELEGRAM_API_BASE` | `-api-base` | Telegram API 地址 | `https://api.telegram.org` |
@@ -92,7 +92,8 @@ curl -X POST http://127.0.0.1:8080/api/send \
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `chat_id` | 是 | 群组/用户 ID，群组以 `-100` 开头 |
+| chat_id | 是 | 群组/用户 ID，群组以 -100 开头 |
+| ot_token | 否 | Bot Token（服务端未设置 TELEGRAM_BOT_TOKEN 时必填） |
 | `text` | 二选一 | 消息文本 |
 | `photo_url` | 二选一 | 图片 URL，走 `sendPhoto` |
 | `caption` | 否 | 图片说明，缺省用 `text` |

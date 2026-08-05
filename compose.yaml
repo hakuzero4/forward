@@ -9,8 +9,8 @@ services:
     ports:
       - "8080:8080"
     environment:
-      # 必填：Bot Token（通过 .env 提供）
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?请在 .env 中设置 TELEGRAM_BOT_TOKEN}
+      # 可选：服务端默认 Bot Token；也可在 /api/send 请求里传 bot_token，或用 /api/forward 拼进 URL
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       # 可选：调用方鉴权 Token（强烈建议设置）
       RELAY_AUTH_TOKEN: ${RELAY_AUTH_TOKEN:-}
       # 可选：限制 /api/forward 的转发目标（逗号分隔，支持子域名）

@@ -68,6 +68,7 @@ type sendRequest struct {
 	DisableNotification   bool   `json:"disable_notification,omitempty"`
 	PhotoURL              string `json:"photo_url,omitempty"`
 	Caption               string `json:"caption,omitempty"`
+	BotToken              string `json:"bot_token,omitempty"`
 }
 
 func (r sendRequest) validate() error {
@@ -282,6 +283,9 @@ func main() {
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
+	if strings.TrimSpace(cfg.botToken) == "" {
+		slog.Warn("TELEGRAM_BOT_TOKEN not set; pass bot_token in /api/send requests or use /api/forward")
+	}
 
 	ls, err := newLogStore(cfg.logFile, cfg.logMax)
 	if err != nil {
@@ -336,7 +340,7 @@ func main() {
 func loadConfig() (config, error) {
 	var cfg config
 	flag.StringVar(&cfg.listenAddr, "listen", envOr("LISTEN_ADDR", ":8080"), "listen address")
-	flag.StringVar(&cfg.botToken, "bot-token", os.Getenv("TELEGRAM_BOT_TOKEN"), "Telegram bot token (or TELEGRAM_BOT_TOKEN)")
+	flag.StringVar(&cfg.botToken, "bot-token", os.Getenv("TELEGRAM_BOT_TOKEN"), "Telegram bot token (optional; pass bot_token per request if unset)")
 	flag.StringVar(&cfg.relayAuthToken, "auth-token", os.Getenv("RELAY_AUTH_TOKEN"), "optional token required from callers (or RELAY_AUTH_TOKEN)")
 	flag.StringVar(&cfg.apiBase, "api-base", envOr("TELEGRAM_API_BASE", "https://api.telegram.org"), "Telegram Bot API base URL")
 	flag.DurationVar(&cfg.timeout, "timeout", 30*time.Second, "outbound request timeout")
@@ -348,9 +352,6 @@ func loadConfig() (config, error) {
 	flag.StringVar(&denyHosts, "forward-deny-hosts", os.Getenv("FORWARD_DENY_HOSTS"), "comma-separated host denylist for /api/forward")
 	flag.Parse()
 
-	if strings.TrimSpace(cfg.botToken) == "" {
-		return config{}, errors.New("TELEGRAM_BOT_TOKEN is required (flag -bot-token or env)")
-	}
 	cfg.apiBase = strings.TrimRight(cfg.apiBase, "/")
 	cfg.forwardAllow = splitHosts(allowHosts)
 	cfg.forwardDeny = splitHosts(denyHosts)
@@ -548,10 +549,18 @@ func (s *server) doSend(r *http.Request) sendResult {
 		method = "sendPhoto"
 	}
 
+	botToken := req.BotToken
+	if botToken == "" {
+		botToken = s.cfg.botToken
+	}
+	if botToken == "" {
+		return sendResult{status: http.StatusBadRequest, errMsg: "bot_token is required (set TELEGRAM_BOT_TOKEN or pass bot_token)", method: method, chatID: req.ChatID}
+	}
+
 	ctx, cancel := context.WithTimeout(r.Context(), s.cfg.timeout)
 	defer cancel()
 
-	resp, err := s.sendToTelegram(ctx, req)
+	resp, err := s.sendToTelegram(ctx, botToken, req)
 	if err != nil {
 		slog.Error("telegram request failed", "error", err)
 		return sendResult{status: http.StatusBadGateway, errMsg: "telegram request failed: " + err.Error(), method: method, chatID: req.ChatID}
@@ -690,7 +699,7 @@ func (s *server) doForward(r *http.Request) forwardResult {
 	}
 }
 
-func (s *server) sendToTelegram(ctx context.Context, req sendRequest) (telegramResponse, error) {
+func (s *server) sendToTelegram(ctx context.Context, botToken string, req sendRequest) (telegramResponse, error) {
 	payload := map[string]any{
 		"chat_id":              req.ChatID,
 		"disable_notification": req.DisableNotification,
@@ -725,7 +734,7 @@ func (s *server) sendToTelegram(ctx context.Context, req sendRequest) (telegramR
 		return telegramResponse{}, fmt.Errorf("encode payload: %w", err)
 	}
 
-	endpoint := fmt.Sprintf("%s/bot%s/%s", s.cfg.apiBase, s.cfg.botToken, method)
+	endpoint := fmt.Sprintf("%s/bot%s/%s", s.cfg.apiBase, botToken, method)
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(raw))
 	if err != nil {
 		return telegramResponse{}, err
