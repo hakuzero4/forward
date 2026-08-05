@@ -52,13 +52,21 @@ docker run -d --name forward -p 8080:8080 \
 
 ### Docker Compose
 
-仓库提供 `compose.yaml`（含 `.env.example`）：
+仓库提供 `compose.yaml`（含 `.env.example`），默认直接拉取 GHCR 镜像，不需要本地构建：
 
 ```bash
-cp .env.example .env   # 填写 TELEGRAM_BOT_TOKEN（必填）等
-docker compose up -d           # 拉取 GHCR 镜像
-docker compose up -d --build   # 或从本地源码构建
+cp .env.example .env   # 填写 TELEGRAM_BOT_TOKEN 等
+docker compose up -d   # 拉取并启动 ghcr.io/hakuzero4/forward
 ```
+
+本地改代码需要重建镜像时，先确认机器上有 buildx（Docker Desktop 自带；Linux 需单独安装），再执行：
+
+```bash
+docker compose build
+docker compose up -d
+```
+
+也可以不用 Compose 构建：`docker build -t forward .` 后用 `docker run` 启动。
 ```
 
 ## 配置

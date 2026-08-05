@@ -1,9 +1,7 @@
 services:
   forward:
-    # 优先使用 GHCR 发布的镜像；本地改代码后可用 docker compose up --build 重建
+    # 直接使用 GHCR 发布的镜像，无需本地构建（无需 buildx）
     image: ghcr.io/hakuzero4/forward:latest
-    build:
-      context: .
     container_name: forward
     restart: unless-stopped
     ports:
