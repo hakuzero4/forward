@@ -5,7 +5,7 @@ COPY main.go logs.html ./
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/forward .
 
 FROM alpine:3.21
-RUN adduser -D -u 10001 app
+RUN adduser -D -u 10001 app && mkdir -p /data && chown app:app /data
 USER app
 COPY --from=build /out/forward /usr/local/bin/forward
 EXPOSE 8080

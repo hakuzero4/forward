@@ -289,8 +289,12 @@ func main() {
 
 	ls, err := newLogStore(cfg.logFile, cfg.logMax)
 	if err != nil {
-		slog.Error("failed to open log store", "error", err)
-		os.Exit(1)
+		slog.Error("failed to open log store; continuing with in-memory logs", "error", err)
+		ls, err = newLogStore("", cfg.logMax)
+		if err != nil {
+			slog.Error("failed to create in-memory log store", "error", err)
+			os.Exit(1)
+		}
 	}
 	defer ls.Close()
 
