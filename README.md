@@ -49,6 +49,16 @@ docker run -d --name forward -p 8080:8080 \
   -e LOG_FILE=/data/forward.jsonl \
   -v forward-logs:/data \
   ghcr.io/hakuzero4/forward:latest
+
+### Docker Compose
+
+仓库提供 `compose.yaml`（含 `.env.example`）：
+
+```bash
+cp .env.example .env   # 填写 TELEGRAM_BOT_TOKEN（必填）等
+docker compose up -d           # 拉取 GHCR 镜像
+docker compose up -d --build   # 或从本地源码构建
+```
 ```
 
 ## 配置

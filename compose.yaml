@@ -1,0 +1,26 @@
+services:
+  forward:
+    # 优先使用 GHCR 发布的镜像；本地改代码后可用 docker compose up --build 重建
+    image: ghcr.io/hakuzero4/forward:latest
+    build:
+      context: .
+    container_name: forward
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # 必填：Bot Token（通过 .env 提供）
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?请在 .env 中设置 TELEGRAM_BOT_TOKEN}
+      # 可选：调用方鉴权 Token（强烈建议设置）
+      RELAY_AUTH_TOKEN: ${RELAY_AUTH_TOKEN:-}
+      # 可选：限制 /api/forward 的转发目标（逗号分隔，支持子域名）
+      FORWARD_ALLOW_HOSTS: ${FORWARD_ALLOW_HOSTS:-}
+      FORWARD_DENY_HOSTS: ${FORWARD_DENY_HOSTS:-}
+      # 记录持久化到命名卷
+      LOG_FILE: /data/forward.jsonl
+      LOG_MAX: "1000"
+    volumes:
+      - forward-logs:/data
+
+volumes:
+  forward-logs:
