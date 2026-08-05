@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>转发中心</title>
+<style>
+:root {
+  --bg: #f2f2f7;
+  --surface: #ffffff;
+  --toolbar: rgba(255,255,255,0.72);
+  --fill: #f2f2f7;
+  --separator: rgba(60,60,67,0.10);
+  --separator-strong: rgba(60,60,67,0.18);
+  --text: #1c1c1e;
+  --text-2: #6e6e73;
+  --text-3: #aeaeb2;
+  --blue: #007aff;
+  --blue-pressed: #0062cc;
+  --green: #34c759;
+  --green-ink: #1e8e46;
+  --orange: #ff9500;
+  --orange-ink: #b86a00;
+  --red: #ff3b30;
+  --red-ink: #d6341f;
+  --purple: #af52de;
+  --shadow-card: 0 1px 2px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.06);
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+* { box-sizing: border-box; }
+html { font-size: 15px; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.45;
+}
+
+/* Toolbar — translucent material */
+.toolbar {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 12px 20px;
+  background: var(--toolbar);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid var(--separator);
+}
+.toolbar-left { display: flex; align-items: center; gap: 10px; }
+h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; margin: 0; }
+.count-badge {
+  font-size: 12px; font-weight: 600; color: var(--text-2);
+  background: var(--fill); border: 1px solid var(--separator);
+  border-radius: 999px; padding: 2px 10px;
+}
+.filters { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* Controls — iOS style */
+select, input[type=text], input[type=number], textarea {
+  font: inherit; color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--separator-strong);
+  border-radius: 10px;
+  padding: 7px 10px;
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+select:focus, input:focus, textarea:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(0,122,255,0.18);
+  background: #fff;
+}
+textarea { resize: vertical; min-height: 56px; font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 13px; }
+input::placeholder, textarea::placeholder { color: var(--text-3); }
+
+.btn {
+  font: inherit; font-weight: 600; font-size: 13.5px;
+  border: 1px solid var(--separator-strong);
+  border-radius: 10px;
+  padding: 7px 14px;
+  cursor: pointer;
+  background: var(--surface);
+  color: var(--blue);
+  transition: transform 100ms ease-out, background 160ms ease, border-color 160ms ease, opacity 160ms ease;
+}
+.btn:hover { background: #fafafa; }
+.btn:active { transform: scale(0.97); }
+.btn:disabled { opacity: 0.5; pointer-events: none; }
+.btn-primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+.btn-primary:hover { background: var(--blue-pressed); }
+.btn-danger { color: var(--red); }
+.btn-danger:hover { background: #fff5f4; }
+
+/* Segmented control */
+.segmented {
+  display: inline-flex; padding: 2px; gap: 2px;
+  background: var(--fill);
+  border: 1px solid var(--separator);
+  border-radius: 10px;
+}
+.segmented button {
+  font: inherit; font-size: 13px; font-weight: 600;
+  border: 0; border-radius: 8px;
+  padding: 5px 14px; cursor: pointer;
+  background: transparent; color: var(--text-2);
+  transition: background 200ms var(--ease), color 200ms ease, box-shadow 200ms ease;
+}
+.segmented button.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+.segmented button:active { transform: scale(0.97); }
+
+main { max-width: 1180px; margin: 0 auto; padding: 20px; }
+
+/* Composer — sheet-like card */
+.composer {
+  display: none;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 18px 20px;
+  margin-bottom: 18px;
+}
+.composer.open { display: block; animation: sheetIn 340ms var(--ease); }
+@keyframes sheetIn {
+  from { opacity: 0; transform: translateY(-10px) scale(0.995); }
+  to { opacity: 1; transform: none; }
+}
+.composer-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.composer-head h2 { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
+.form-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px;
+}
+.form-grid .span2 { grid-column: span 2; }
+.field label {
+  display: block; font-size: 11.5px; font-weight: 600; color: var(--text-2);
+  letter-spacing: 0.01em; margin-bottom: 5px;
+}
+.field input[type=text], .field input[type=number], .field select, .field textarea { width: 100%; }
+.row-inline { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); cursor: pointer; user-select: none; }
+.check input { accent-color: var(--blue); width: 16px; height: 16px; }
+.composer-actions { display: flex; align-items: center; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+.send-result { font-size: 13px; font-weight: 500; min-height: 20px; }
+.send-result.ok { color: var(--green-ink); }
+.send-result.error { color: var(--red-ink); }
+.token-field { max-width: 320px; }
+
+
+/* Docs */
+.docs {
+  display: none;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 18px 20px;
+  margin-bottom: 18px;
+}
+.docs.open { display: block; animation: sheetIn 340ms var(--ease); }
+.docs h3 { font-size: 13px; font-weight: 700; letter-spacing: -0.01em; margin: 18px 0 8px; }
+.docs h3:first-child { margin-top: 0; }
+.doc-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 4px 0 6px; }
+.doc-table td { padding: 6px 10px; border-bottom: 1px solid var(--separator); vertical-align: top; }
+.doc-table td:first-child { font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 12.5px; color: var(--blue); white-space: nowrap; width: 230px; }
+.doc-table tr:last-child td { border-bottom: 0; }
+.docs pre {
+  background: var(--fill); border: 1px solid var(--separator);
+  border-radius: 10px; padding: 10px 12px; margin: 6px 0 4px;
+  overflow-x: auto; font-size: 12.5px; line-height: 1.55;
+}
+.docs code { font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 12.5px; }
+.docs ul { margin: 6px 0; padding-left: 20px; font-size: 13px; }
+.docs li { margin: 4px 0; }
+.docs p { font-size: 13px; color: var(--text-2); margin: 4px 0; }
+/* Logs table — grouped card */
+.table-card {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th {
+  position: sticky; top: 64px; z-index: 5;
+  background: rgba(255,255,255,0.85);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  backdrop-filter: blur(14px) saturate(160%);
+  text-align: left; font-size: 11.5px; font-weight: 600; color: var(--text-2);
+  letter-spacing: 0.02em; padding: 10px 14px;
+  border-bottom: 1px solid var(--separator);
+  white-space: nowrap;
+}
+tbody td { padding: 10px 14px; border-bottom: 1px solid var(--separator); white-space: nowrap; vertical-align: top; }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr { transition: background 140ms ease; }
+tbody tr:hover { background: rgba(0,0,0,0.025); }
+td.url { white-space: normal; word-break: break-all; max-width: 360px; }
+td.err { color: var(--red-ink); white-space: normal; word-break: break-all; max-width: 240px; }
+td.time { color: var(--text-2); font-variant-numeric: tabular-nums; }
+.kind-send { color: var(--blue); font-weight: 600; }
+.kind-forward { color: var(--purple); font-weight: 600; }
+.badge {
+  display: inline-block; min-width: 36px; text-align: center;
+  padding: 1px 8px; border-radius: 999px;
+  font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.badge-2 { background: rgba(52,199,89,0.14); color: var(--green-ink); }
+.badge-4 { background: rgba(255,149,0,0.16); color: var(--orange-ink); }
+.badge-5 { background: rgba(255,59,48,0.13); color: var(--red-ink); }
+.empty { color: var(--text-3); text-align: center; padding: 44px 0; font-size: 14px; }
+
+@media (max-width: 760px) {
+  .form-grid { grid-template-columns: 1fr; }
+  .form-grid .span2 { grid-column: span 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .toolbar, thead th { background: #fff; -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+</style>
+</head>
+<body>
+<header class="toolbar">
+  <div class="toolbar-left">
+    <h1>转发中心</h1>
+    <span class="count-badge" id="count">0 条</span>
+  </div>
+  <div class="filters">
+    <select id="kind">
+      <option value="">全部类型</option>
+      <option value="send">Telegram 发送</option>
+      <option value="forward">通用转发</option>
+    </select>
+    <input type="number" id="status" placeholder="状态码" min="100" max="599" style="width:88px">
+    <label class="check"><input type="checkbox" id="auto" checked> 自动刷新</label>
+    <button class="btn" id="refresh">刷新</button>
+    <button class="btn btn-primary" id="toggleSend">发送转发</button>
+    <button class="btn" id="toggleDocs">使用说明</button>
+    <button class="btn btn-danger" id="clear">清空记录</button>
+  </div>
+</header>
+
+<main>
+  <section class="composer" id="composer">
+    <div class="composer-head">
+      <h2>发送转发</h2>
+      <div class="segmented" id="modeSeg">
+        <button type="button" data-mode="forward" class="active">通用转发</button>
+        <button type="button" data-mode="send">Telegram 发送</button>
+      </div>
+    </div>
+
+    <!-- 通用转发 -->
+    <div class="form-grid" id="form-forward">
+      <div class="field span2">
+        <label>目标地址 URL</label>
+        <input type="text" id="fwdUrl" placeholder="https://api.telegram.org/bot.../sendMessage 或任意 http(s) 地址" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>请求方法</label>
+        <select id="fwdMethod">
+          <option>GET</option>
+          <option selected>POST</option>
+          <option>PUT</option>
+          <option>PATCH</option>
+          <option>DELETE</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>超时（毫秒，可选）</label>
+        <input type="number" id="fwdTimeout" placeholder="默认 30000" min="0" max="120000">
+      </div>
+      <div class="field">
+        <label>请求头（每行一个，Key: value，可选）</label>
+        <textarea id="fwdHeaders" placeholder="Content-Type: application/json"></textarea>
+      </div>
+      <div class="field">
+        <label>请求体 Body（可选）</label>
+        <textarea id="fwdBody" placeholder='{"chat_id":"123","text":"hi"}'></textarea>
+      </div>
+      <div class="field">
+        <label>鉴权 Token（RELAY_AUTH_TOKEN，可选）</label>
+        <input type="text" class="token-field" id="token" placeholder="设置了鉴权时需要" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>客户端 IP</label>
+        <input type="text" value="本机自动获取" disabled style="color:var(--text-3)">
+      </div>
+    </div>
+
+    <!-- Telegram 发送 -->
+    <div class="form-grid" id="form-send" style="display:none">
+      <div class="field">
+        <label>chat_id *</label>
+        <input type="text" id="tgChat" placeholder="群组以 -100 开头" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>message_thread_id（话题，可选）</label>
+        <input type="number" id="tgThread" placeholder="可选">
+      </div>
+      <div class="field span2">
+        <label>消息文本 text</label>
+        <textarea id="tgText" placeholder="要发送的消息内容"></textarea>
+      </div>
+      <div class="field">
+        <label>图片 URL photo_url（可选）</label>
+        <input type="text" id="tgPhoto" placeholder="https://...jpg" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>图片说明 caption（可选，缺省用 text）</label>
+        <input type="text" id="tgCaption" placeholder="可选" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>parse_mode</label>
+        <select id="tgParse">
+          <option value="">无</option>
+          <option value="MarkdownV2">MarkdownV2</option>
+          <option value="HTML">HTML</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>鉴权 Token（RELAY_AUTH_TOKEN，可选）</label>
+        <input type="text" class="token-field" id="tokenSend" placeholder="设置了鉴权时需要" autocomplete="off">
+      </div>
+      <div class="span2 row-inline">
+        <label class="check"><input type="checkbox" id="tgNotify"> 静默发送 disable_notification</label>
+        <label class="check"><input type="checkbox" id="tgPreview"> 关闭链接预览 disable_web_page_preview</label>
+      </div>
+    </div>
+
+    <div class="composer-actions">
+      <button class="btn btn-primary" id="sendBtn">发送</button>
+      <button class="btn" id="resetBtn">清空表单</button>
+      <span class="send-result" id="sendResult"></span>
+    </div>
+  </section>
+
+
+  <section class="docs" id="docs">
+    <div class="composer-head">
+      <h2>使用说明</h2>
+    </div>
+
+    <h3>接口总览</h3>
+    <table class="doc-table">
+      <tr><td>POST /api/send</td><td>发 Telegram 消息（文本 / 图片 / 话题）</td></tr>
+      <tr><td>POST /api/forward</td><td>转发到任意 http(s) 地址</td></tr>
+      <tr><td>GET /api/logs</td><td>查询转发记录（limit / kind / status）</td></tr>
+      <tr><td>DELETE /api/logs</td><td>清空全部记录</td></tr>
+      <tr><td>GET /healthz</td><td>健康检查</td></tr>
+    </table>
+
+    <h3>发 Telegram 消息</h3>
+    <pre><code>curl -X POST http://127.0.0.1:8080/api/send \
+  -H "Content-Type: application/json" \
+  -d '{"chat_id":"-1001234567890","text":"hello"}'</code></pre>
+    <table class="doc-table">
+      <tr><td>chat_id *</td><td>群组 / 用户 ID，群组以 -100 开头</td></tr>
+      <tr><td>text</td><td>消息文本（与 photo_url 二选一）</td></tr>
+      <tr><td>photo_url</td><td>图片 URL，此时走 sendPhoto</td></tr>
+      <tr><td>caption</td><td>图片说明，缺省用 text</td></tr>
+      <tr><td>message_thread_id</td><td>话题线程 ID（forum topic）</td></tr>
+      <tr><td>parse_mode</td><td>MarkdownV2 或 HTML</td></tr>
+      <tr><td>disable_notification / disable_web_page_preview</td><td>静默发送 / 关闭链接预览</td></tr>
+    </table>
+
+    <h3>转发任意地址</h3>
+    <pre><code>curl -X POST http://127.0.0.1:8080/api/forward \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://example.com/status","method":"GET"}'</code></pre>
+    <p>简单 GET 也可用：<code>curl "http://127.0.0.1:8080/api/forward?url=https://example.com/status"</code></p>
+    <table class="doc-table">
+      <tr><td>url *</td><td>目标地址，仅支持 http / https</td></tr>
+      <tr><td>method</td><td>GET / POST / PUT / PATCH / DELETE，默认 GET</td></tr>
+      <tr><td>headers</td><td>额外请求头（Host 也可指定）</td></tr>
+      <tr><td>body</td><td>请求体字符串</td></tr>
+      <tr><td>timeout_ms</td><td>本次超时（毫秒，上限 120000）</td></tr>
+    </table>
+
+    <h3>鉴权</h3>
+    <p>设置了 <code>RELAY_AUTH_TOKEN</code> 后，调用需带 <code>X-Relay-Token</code> 或 <code>Authorization: Bearer &lt;token&gt;</code>（页面发送面板可填写并自动保存）。</p>
+    <pre><code>curl -X POST http://127.0.0.1:8080/api/forward \
+  -H "Content-Type: application/json" \
+  -H "X-Relay-Token: your-secret" \
+  -d '{"url":"https://example.com/status"}'</code></pre>
+
+    <h3>配置（环境变量）</h3>
+    <table class="doc-table">
+      <tr><td>TELEGRAM_BOT_TOKEN *</td><td>Bot Token（必填）</td></tr>
+      <tr><td>RELAY_AUTH_TOKEN</td><td>调用方鉴权 Token（建议设置）</td></tr>
+      <tr><td>LISTEN_ADDR</td><td>监听地址，默认 :8080</td></tr>
+      <tr><td>TELEGRAM_API_BASE</td><td>Telegram API 地址</td></tr>
+      <tr><td>LOG_FILE</td><td>记录 JSONL 文件路径（空=仅内存）</td></tr>
+      <tr><td>LOG_MAX</td><td>内存保留记录数，默认 1000</td></tr>
+      <tr><td>FORWARD_ALLOW_HOSTS</td><td>/api/forward 域名白名单（逗号分隔）</td></tr>
+      <tr><td>FORWARD_DENY_HOSTS</td><td>/api/forward 域名黑名单</td></tr>
+      <tr><td>FORWARD_MAX_BODY</td><td>转发请求 / 响应体上限（字节）</td></tr>
+    </table>
+
+    <h3>注意事项</h3>
+    <ul>
+      <li>/api/forward 相当于开放代理：务必设置 RELAY_AUTH_TOKEN，必要时用 FORWARD_ALLOW_HOSTS 限定目标。</li>
+      <li>记录中的 Bot Token 与 token / access_token 参数会自动打码。</li>
+      <li>日志页面与 /api/logs 默认不要求鉴权，建议只在内网监听或加反向代理。</li>
+      <li>中继机自身需代理时设置 HTTPS_PROXY（Go 自动读取）。</li>
+    </ul>
+  </section>
+  <section class="table-card">
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>时间</th><th>类型</th><th>方法</th><th>地址</th><th>Chat ID</th>
+          <th>中继状态</th><th>上游状态</th><th>耗时</th><th>客户端 IP</th><th>错误</th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="empty" style="display:none">暂无记录</div>
+  </section>
+</main>
+
+<script>
+var $ = function (id) { return document.getElementById(id); };
+var tokenKey = 'forward_relay_token';
+var mode = 'forward';
+
+function badge(code) {
+  var cls = code >= 500 ? 'badge-5' : code >= 400 ? 'badge-4' : 'badge-2';
+  return '<span class="badge ' + cls + '">' + code + '</span>';
+}
+
+function render(entries) {
+  var tb = $('rows');
+  tb.innerHTML = '';
+  $('empty').style.display = entries.length ? 'none' : 'block';
+  $('count').textContent = entries.length + ' 条';
+  for (var i = 0; i < entries.length; i++) {
+    var e = entries[i];
+    var tr = document.createElement('tr');
+    var cols = [
+      { text: e.time, cls: 'time' },
+      { text: e.kind, cls: 'kind-' + e.kind },
+      { text: e.method },
+      { text: e.url, cls: 'url' },
+      { text: e.chat_id || '-' },
+      { badge: e.relay_status },
+      e.upstream_status ? { badge: e.upstream_status } : { text: '-' },
+      { text: e.duration_ms + ' ms' },
+      { text: e.client_ip || '-' },
+      { text: e.error || '', cls: 'err' }
+    ];
+    for (var j = 0; j < cols.length; j++) {
+      var col = cols[j];
+      var td = document.createElement('td');
+      if (col.badge) { td.innerHTML = badge(col.badge); }
+      else { td.textContent = col.text; }
+      if (col.cls) { td.className = col.cls; }
+      tr.appendChild(td);
+    }
+    tb.appendChild(tr);
+  }
+}
+
+function load() {
+  var url = '/api/logs?limit=500';
+  var kind = $('kind').value;
+  var status = $('status').value.trim();
+  if (kind) { url += '&kind=' + encodeURIComponent(kind); }
+  if (status) { url += '&status=' + encodeURIComponent(status); }
+  fetch(url).then(function (r) { return r.json(); }).then(function (data) {
+    if (!data.ok) { throw new Error(data.error || 'error'); }
+    render(data.entries);
+  }).catch(function (err) {
+    $('empty').style.display = 'block';
+    $('empty').textContent = '加载失败: ' + err.message;
+  });
+}
+
+/* composer */
+function toggleComposer(force) {
+  var open = typeof force === 'boolean' ? force : !$('composer').classList.contains('open');
+  $('composer').classList.toggle('open', open);
+  $('toggleSend').textContent = open ? '收起' : '发送转发';
+}
+
+function setMode(m) {
+  mode = m;
+  $('form-forward').style.display = m === 'forward' ? '' : 'none';
+  $('form-send').style.display = m === 'send' ? '' : 'none';
+  var btns = document.querySelectorAll('#modeSeg button');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].className = btns[i].getAttribute('data-mode') === m ? 'active' : '';
+  }
+}
+
+function parseHeaders(text) {
+  var out = {};
+  var lines = text.split(/\r?\n/);
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i].trim();
+    if (!line) { continue; }
+    var idx = line.indexOf(':');
+    if (idx <= 0) { continue; }
+    var k = line.slice(0, idx).trim();
+    var v = line.slice(idx + 1).trim();
+    if (k) { out[k] = v; }
+  }
+  return out;
+}
+
+function showResult(msg, kind) {
+  var el = $('sendResult');
+  el.textContent = msg;
+  el.className = 'send-result ' + (kind || '');
+}
+
+function syncToken() {
+  var v = $('token').value;
+  if (v) { localStorage.setItem(tokenKey, v); }
+  else { localStorage.removeItem(tokenKey); }
+  $('tokenSend').value = v;
+}
+function syncTokenSend() {
+  var v = $('tokenSend').value;
+  if (v) { localStorage.setItem(tokenKey, v); }
+  else { localStorage.removeItem(tokenKey); }
+  $('token').value = v;
+}
+
+function resetForm() {
+  if (mode === 'forward') {
+    $('fwdUrl').value = ''; $('fwdTimeout').value = '';
+    $('fwdHeaders').value = ''; $('fwdBody').value = '';
+  } else {
+    $('tgChat').value = ''; $('tgThread').value = '';
+    $('tgText').value = ''; $('tgPhoto').value = ''; $('tgCaption').value = '';
+    $('tgParse').value = ''; $('tgNotify').checked = false; $('tgPreview').checked = false;
+  }
+  showResult('', '');
+}
+
+async function sendNow() {
+  var token = localStorage.getItem(tokenKey) || '';
+  var headers = { 'Content-Type': 'application/json' };
+  if (token) { headers['X-Relay-Token'] = token; }
+
+  var url, payload;
+  if (mode === 'forward') {
+    var target = $('fwdUrl').value.trim();
+    if (!target) { showResult('请填写目标地址 URL', 'error'); return; }
+    payload = { url: target, method: $('fwdMethod').value };
+    var hdrs = parseHeaders($('fwdHeaders').value);
+    if (Object.keys(hdrs).length) { payload.headers = hdrs; }
+    if ($('fwdBody').value) { payload.body = $('fwdBody').value; }
+    var t = parseInt($('fwdTimeout').value, 10);
+    if (t > 0) { payload.timeout_ms = t; }
+    url = '/api/forward';
+  } else {
+    var chat = $('tgChat').value.trim();
+    if (!chat) { showResult('请填写 chat_id', 'error'); return; }
+    payload = { chat_id: chat };
+    if ($('tgText').value) { payload.text = $('tgText').value; }
+    if ($('tgPhoto').value.trim()) { payload.photo_url = $('tgPhoto').value.trim(); }
+    if ($('tgCaption').value.trim()) { payload.caption = $('tgCaption').value.trim(); }
+    var tid = parseInt($('tgThread').value, 10);
+    if (tid > 0) { payload.message_thread_id = tid; }
+    var pm = $('tgParse').value;
+    if (pm) { payload.parse_mode = pm; }
+    if ($('tgNotify').checked) { payload.disable_notification = true; }
+    if ($('tgPreview').checked) { payload.disable_web_page_preview = true; }
+    url = '/api/send';
+  }
+
+  var btn = $('sendBtn');
+  btn.disabled = true;
+  btn.textContent = '发送中…';
+  showResult('发送中…', '');
+  try {
+    var res = await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(payload) });
+    var data = {};
+    try { data = await res.json(); } catch (e) {}
+    if (res.ok && data.ok !== false) {
+      if (data.message_id) { showResult('发送成功 · message_id=' + data.message_id, 'ok'); }
+      else { showResult('转发成功 · 上游状态 ' + data.status, 'ok'); }
+      load();
+    } else {
+      showResult('发送失败 · ' + (data.error || ('HTTP ' + res.status)), 'error');
+      load();
+    }
+  } catch (e) {
+    showResult('请求失败: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '发送';
+  }
+}
+
+/* wire up */
+$('toggleSend').onclick = function () { toggleComposer(); };
+$('toggleDocs').onclick = function () {
+  var open = !$('docs').classList.contains('open');
+  $('docs').classList.toggle('open', open);
+  $('toggleDocs').textContent = open ? '收起说明' : '使用说明';
+};
+$('clear').onclick = function () {
+  if (!confirm('确认清空全部记录？')) { return; }
+  fetch('/api/logs', { method: 'DELETE' }).then(load);
+};
+$('refresh').onclick = load;
+$('auto').onchange = function () { if ($('auto').checked) { load(); } };
+$('kind').onchange = load;
+$('status').onchange = load;
+$('sendBtn').onclick = sendNow;
+$('resetBtn').onclick = resetForm;
+$('token').oninput = syncToken;
+$('tokenSend').oninput = syncTokenSend;
+var segBtns = document.querySelectorAll('#modeSeg button');
+for (var i = 0; i < segBtns.length; i++) {
+  segBtns[i].onclick = function () { setMode(this.getAttribute('data-mode')); };
+}
+var savedToken = localStorage.getItem(tokenKey) || '';
+$('token').value = savedToken;
+$('tokenSend').value = savedToken;
+toggleComposer(true);
+setMode('forward');
+load();
+setInterval(function () { if ($('auto').checked) { load(); } }, 5000);
+</script>
+</body>
+</html>

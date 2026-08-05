@@ -1,0 +1,7 @@
+.git
+.github
+dist
+forward
+forward.exe
+forward.log
+*.md
