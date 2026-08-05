@@ -30,9 +30,10 @@
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 * { box-sizing: border-box; }
-html { font-size: 15px; }
+html { font-size: 15px; height: 100%; }
 body {
   margin: 0;
+  min-height: 100%;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
@@ -184,7 +185,9 @@ main { max-width: 1180px; margin: 0 auto; padding: 20px; }
   box-shadow: var(--shadow-card);
   overflow: hidden;
 }
-.table-wrap { overflow-x: auto; }
+.table-wrap { overflow: auto; max-height: 560px; }
+.table-wrap thead th { top: 0; }
+.table-more { text-align: center; padding: 10px 12px; border-top: 1px solid var(--separator); }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 thead th {
   position: sticky; top: 64px; z-index: 5;
@@ -357,7 +360,7 @@ td.time { color: var(--text-2); font-variant-numeric: tabular-nums; }
     <table class="doc-table">
       <tr><td>POST /api/send</td><td>发 Telegram 消息（文本 / 图片 / 话题）</td></tr>
       <tr><td>POST /api/forward</td><td>转发到任意 http(s) 地址</td></tr>
-      <tr><td>GET /api/logs</td><td>查询转发记录（limit / kind / status）</td></tr>
+      <tr><td>GET /api/logs</td><td>查询转发记录（limit / offset / kind / status）</td></tr>
       <tr><td>DELETE /api/logs</td><td>清空全部记录</td></tr>
       <tr><td>GET /healthz</td><td>健康检查</td></tr>
     </table>
@@ -428,6 +431,7 @@ td.time { color: var(--text-2); font-variant-numeric: tabular-nums; }
         <tbody id="rows"></tbody>
       </table>
     </div>
+    <div class="table-more"><button class="btn" id="loadMoreBtn" style="display:none">加载更多</button></div>
     <div class="empty" id="empty" style="display:none">暂无记录</div>
   </section>
 </main>
@@ -442,50 +446,93 @@ function badge(code) {
   return '<span class="badge ' + cls + '">' + code + '</span>';
 }
 
-function render(entries) {
+var PAGE = 50;
+var loaded = [];
+var seen = {};
+
+function buildRow(e) {
+  var tr = document.createElement('tr');
+  var cols = [
+    { text: e.time, cls: 'time' },
+    { text: e.kind, cls: 'kind-' + e.kind },
+    { text: e.method },
+    { text: e.url, cls: 'url' },
+    { text: e.chat_id || '-' },
+    { badge: e.relay_status },
+    e.upstream_status ? { badge: e.upstream_status } : { text: '-' },
+    { text: e.duration_ms + ' ms' },
+    { text: e.client_ip || '-' },
+    { text: e.error || '', cls: 'err' }
+  ];
+  for (var j = 0; j < cols.length; j++) {
+    var col = cols[j];
+    var td = document.createElement('td');
+    if (col.badge) { td.innerHTML = badge(col.badge); }
+    else { td.textContent = col.text; }
+    if (col.cls) { td.className = col.cls; }
+    tr.appendChild(td);
+  }
+  return tr;
+}
+
+function render() {
   var tb = $('rows');
   tb.innerHTML = '';
-  $('empty').style.display = entries.length ? 'none' : 'block';
-  $('count').textContent = entries.length + ' 条';
-  for (var i = 0; i < entries.length; i++) {
-    var e = entries[i];
-    var tr = document.createElement('tr');
-    var cols = [
-      { text: e.time, cls: 'time' },
-      { text: e.kind, cls: 'kind-' + e.kind },
-      { text: e.method },
-      { text: e.url, cls: 'url' },
-      { text: e.chat_id || '-' },
-      { badge: e.relay_status },
-      e.upstream_status ? { badge: e.upstream_status } : { text: '-' },
-      { text: e.duration_ms + ' ms' },
-      { text: e.client_ip || '-' },
-      { text: e.error || '', cls: 'err' }
-    ];
-    for (var j = 0; j < cols.length; j++) {
-      var col = cols[j];
-      var td = document.createElement('td');
-      if (col.badge) { td.innerHTML = badge(col.badge); }
-      else { td.textContent = col.text; }
-      if (col.cls) { td.className = col.cls; }
-      tr.appendChild(td);
-    }
-    tb.appendChild(tr);
-  }
+  $('empty').style.display = loaded.length ? 'none' : 'block';
+  $('empty').textContent = '暂无记录';
+  $('count').textContent = loaded.length + ' 条';
+  var frag = document.createDocumentFragment();
+  for (var i = 0; i < loaded.length; i++) { frag.appendChild(buildRow(loaded[i])); }
+  tb.appendChild(frag);
+}
+
+function logsQuery() {
+  var qs = 'limit=' + PAGE;
+  var kind = $('kind').value;
+  var status = $('status').value.trim();
+  if (kind) { qs += '&kind=' + encodeURIComponent(kind); }
+  if (status) { qs += '&status=' + encodeURIComponent(status); }
+  return qs;
+}
+
+function resetList() {
+  loaded = [];
+  seen = {};
+  load();
 }
 
 function load() {
-  var url = '/api/logs?limit=500';
-  var kind = $('kind').value;
-  var status = $('status').value.trim();
-  if (kind) { url += '&kind=' + encodeURIComponent(kind); }
-  if (status) { url += '&status=' + encodeURIComponent(status); }
-  fetch(url).then(function (r) { return r.json(); }).then(function (data) {
+  fetch('/api/logs?' + logsQuery()).then(function (r) { return r.json(); }).then(function (data) {
     if (!data.ok) { throw new Error(data.error || 'error'); }
-    render(data.entries);
+    var fresh = data.entries;
+    var freshIds = {};
+    for (var i = 0; i < fresh.length; i++) { freshIds[fresh[i].id] = true; }
+    loaded = loaded.filter(function (e) { return !freshIds[e.id]; });
+    loaded = fresh.concat(loaded);
+    seen = {};
+    for (var i = 0; i < loaded.length; i++) { seen[loaded[i].id] = true; }
+    $('loadMoreBtn').style.display = fresh.length < PAGE ? 'none' : '';
+    render();
   }).catch(function (err) {
     $('empty').style.display = 'block';
     $('empty').textContent = '加载失败: ' + err.message;
+  });
+}
+
+function loadMore() {
+  var url = '/api/logs?' + logsQuery() + '&offset=' + loaded.length;
+  fetch(url).then(function (r) { return r.json(); }).then(function (data) {
+    if (!data.ok) { throw new Error(data.error || 'error'); }
+    var more = [];
+    for (var i = 0; i < data.entries.length; i++) {
+      var e = data.entries[i];
+      if (!seen[e.id]) { seen[e.id] = true; more.push(e); }
+    }
+    loaded = loaded.concat(more);
+    render();
+    if (data.entries.length < PAGE) { $('loadMoreBtn').style.display = 'none'; }
+  }).catch(function () {
+    $('loadMoreBtn').textContent = '加载失败，点击重试';
   });
 }
 
@@ -618,12 +665,13 @@ $('toggleDocs').onclick = function () {
 };
 $('clear').onclick = function () {
   if (!confirm('确认清空全部记录？')) { return; }
-  fetch('/api/logs', { method: 'DELETE' }).then(load);
+  fetch('/api/logs', { method: 'DELETE' }).then(resetList);
 };
 $('refresh').onclick = load;
 $('auto').onchange = function () { if ($('auto').checked) { load(); } };
-$('kind').onchange = load;
-$('status').onchange = load;
+$('kind').onchange = resetList;
+$('status').onchange = resetList;
+$('loadMoreBtn').onclick = loadMore;
 $('sendBtn').onclick = sendNow;
 $('resetBtn').onclick = resetForm;
 $('token').oninput = syncToken;

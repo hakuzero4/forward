@@ -221,16 +221,21 @@ func (ls *logStore) appendLocked(e logEntry) {
 	ls.buf = append(ls.buf, e)
 }
 
-func (ls *logStore) List(limit int, kind string, status int) []logEntry {
+func (ls *logStore) List(offset, limit int, kind string, status int) []logEntry {
 	ls.mu.Lock()
 	defer ls.mu.Unlock()
 	out := make([]logEntry, 0, limit)
+	skipped := 0
 	for i := len(ls.buf) - 1; i >= 0; i-- {
 		e := ls.buf[i]
 		if kind != "" && e.Kind != kind {
 			continue
 		}
 		if status != 0 && e.RelayStatus != status {
+			continue
+		}
+		if skipped < offset {
+			skipped++
 			continue
 		}
 		out = append(out, e)
@@ -490,6 +495,12 @@ func (s *server) handleLogs(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	offset := 0
+	if v := q.Get("offset"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			offset = n
+		}
+	}
 	kind := q.Get("kind")
 	var status int
 	if v := q.Get("status"); v != "" {
@@ -498,7 +509,7 @@ func (s *server) handleLogs(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	entries := s.logs.List(limit, kind, status)
+	entries := s.logs.List(offset, limit, kind, status)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "count": len(entries), "entries": entries})
 }
 
